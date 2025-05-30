@@ -3,22 +3,21 @@ from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Cambiar localhost por 'localhost' o los detalles de tu base de datos local
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",  # Asegúrate de que esta variable esté configurada correctamente en tu entorno si es necesario
-    "postgresql://postgres:3312@localhost:5432/Cash_hunter"  # Conexión a base de datos local
-)
+# Solo intenta conectar si hay una base de datos definida
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Crear el motor de la base de datos
-engine = create_engine(DATABASE_URL)
+# Si no hay conexión definida (como en Streamlit Cloud), usar un modo seguro sin conexión real
+USE_DATABASE = DATABASE_URL is not None
 
-# Crear la sesión de base de datos
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+if USE_DATABASE:
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+else:
+    engine = None
+    SessionLocal = None
 
-# Definir la base para las clases ORM
 Base = declarative_base()
 
-# Definir el modelo de la tabla Prediction
 class Prediction(Base):
     __tablename__ = "predictions"
 
@@ -27,12 +26,18 @@ class Prediction(Base):
     probability = Column(Float)
     deadline = Column(String)
 
-# Crear la base de datos si no existe
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    if USE_DATABASE and engine is not None:
+        Base.metadata.create_all(bind=engine)
+    else:
+        print("⚠️ Base de datos no inicializada: DATABASE_URL no configurada")
 
-# Función para obtener la sesión de la base de datos
 def get_session():
-    return SessionLocal()
+    if USE_DATABASE and SessionLocal is not None:
+        return SessionLocal()
+    else:
+        print("⚠️ No hay conexión activa a la base de datos")
+        return None
+
 
 
