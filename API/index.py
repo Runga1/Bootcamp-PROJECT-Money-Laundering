@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import tempfile
 import os
+from pathlib import Path
 from predictor import run_predictions
-from db import init_db, get_session, Prediction  # Importa todo lo necesario
+from db import init_db, get_session, Prediction
 
 # Crear las tablas en la base de datos (una sola vez)
 init_db()
@@ -15,8 +16,11 @@ with col1:
     st.title("Cash Hunter")
 
 with col2:
-    image_path = "chatgpt_image_14_may_2025_15_53_35.png"
-    st.image(image_path, width=80)
+    image_path = Path(__file__).parent / "chatgpt_image_14_may_2025_15_53_35.png"
+    if image_path.exists():
+        st.image(str(image_path), width=80)
+    else:
+        st.warning("Imagen no encontrada.")
 
 st.write("Sube un archivo CSV con las transacciones para obtener predicciones.")
 
@@ -33,12 +37,10 @@ if uploaded_file is not None:
         if missing_cols:
             st.error(f"Faltan columnas requeridas: {missing_cols}")
         else:
-            # Guardar archivo temporal para procesar con chunks
             with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
                 tmp.write(uploaded_file.getvalue())
                 tmp_path = tmp.name
 
-            # Ejecutar predicciones
             df_result = run_predictions(tmp_path)
             os.remove(tmp_path)
 
@@ -46,7 +48,6 @@ if uploaded_file is not None:
                 st.success("Predicciones realizadas correctamente")
                 st.dataframe(df_result)
 
-                # Guardar resultados en la base de datos
                 session = get_session()
                 try:
                     for _, row in df_result.iterrows():
@@ -75,6 +76,7 @@ if uploaded_file is not None:
                 st.error("No se pudo procesar el archivo o no hay resultados.")
     except Exception as e:
         st.error(f"Ocurrió un error: {e}")
+
 
 
 
